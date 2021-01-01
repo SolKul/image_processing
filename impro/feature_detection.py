@@ -3,12 +3,13 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
-from . import image_processing as mip
-
+from . import image_processing as ip
 
 def compute_harris_response(im,sigma=3):
-    '''グレースケール画像の各ピクセルについて、
-    Harris coner detectorの応答関数を計算する'''
+    """
+    グレースケール画像の各ピクセルについて、
+    Harris coner detectorの応答関数を計算する
+    """
     
     #微分フィルタ
     imx = np.zeros(im.shape)
@@ -25,18 +26,24 @@ def compute_harris_response(im,sigma=3):
     Wdet = Wxx*Wyy - Wxy**2
     Wtr = Wxx + Wyy
 
+    # 返り値の画像は引数の画像と同じサイズとなる。
     return Wdet/Wtr
 
-
 def search_harris_point(harrisim,min_dist=10,threshold=0.1):
-    '''Harris応答画像からコーナーを返す
-    min_distはコーナーや画像境界から分離する最小ピクセル数'''
+    """
+    Harris応答画像からコーナーを返す
+    min_distはすでにリストに追加されたコーナーや画像境界から分離する最小ピクセル数
+    """
     
     #閾値thresholdを超えるコーナー候補を見つける
     corner_threshold=harrisim.max()*threshold
     harrisim_t=(harrisim > corner_threshold) *1
 
-    #候補の座標を得る
+    # 候補の座標を得る
+    # numpyのarrayは最初が列方向、行方向だが、
+    # ndarray.nonzero()は行方向のインデックス、
+    # 列方向のインデックスの順にタプルで返すので、
+    # nonzero()を転置している。
     coords = np.array(harrisim_t.nonzero()).T
 
     #候補の値を得る
@@ -52,19 +59,36 @@ def search_harris_point(harrisim,min_dist=10,threshold=0.1):
     allowed_locations[min_dist:-min_dist,min_dist:-min_dist]=1
 
     #最小距離を考慮しながら、最良の点を得る
+    # coordsは列方向、行方向のタプルのリスト
     filtered_coords = []
     for i in index:
+        # allowed_locationsで1が入っている点だけを調べる
         if allowed_locations[coords[i,0],coords[i,1]] == 1:
             filtered_coords.append(coords[i])
+            # ある点がリストに追加されたら場合は
+            # そこからmin_dist四方はリストに追加されないようにする。
             allowed_locations[(coords[i,0]-min_dist):(coords[i,0]+min_dist),
                              (coords[i,1]-min_dist):(coords[i,1]+min_dist)] = 0
     return filtered_coords
 
+def plot_harris_points(image,filtered_coords):
+    """
+    画像中に見つかったコーナーを描画 
+    """
+    im_draw=image.copy()
+    for coord in filtered_coords:
+        # coordはy軸(列)、x軸(行)の順だが、
+        # cv2.circleは座標はx軸(行)、y軸(列)の順
+        pt=(coord[1],coord[0])
+        cv2.circle(im_draw,pt,2,(0,100,200),thickness=20)
+    ip.show_img(im_draw)
 
-# +
+
 def extract_pixels_near_coord(image,coords,wid=5):
-    '''各点について、点の周辺で幅2*wid+1の近傍ピクセル値を取り出す
-    (search_harris_pointでの点の最小距離 min_dist > widを仮定している)'''
+    """
+    各点について、点の周辺で幅2*wid+1の近傍ピクセル値を取り出す
+    (search_harris_pointでの点の最小距離 min_dist > widを仮定している)
+    """
     desc=[]
     for coord in coords:
         patch=image[(coord[0]-wid):(coord[0]+wid+1),
@@ -144,7 +168,7 @@ def plot_matches(im1,im2,locs1,locs2,match_indices,show_below=True,figsize=(6,4)
     if show_below:
         im3 = np.vstack((im3,im3))
     
-    mip.show_img(im3,figsize=figsize)
+    ip.show_img(im3,figsize=figsize)
     width1 = im1.shape[1]
     for i,m in enumerate(match_indices):
         if m>=0:

@@ -39,8 +39,17 @@ def show_img(
         img,
         figsize=(9,6),
         isBGR=True,
-        show_as_it_is=False,
+        show_mode="scale",
         show_axis=False):
+    """
+    array形式の画像を表示する。カラーでもグレースケールでも対応。
+    グレースケールの場合、そのまま、スケール、ログスケールで表示が選べる。
+
+    args:
+        show_mode (str): "as_it_is":そのまま。
+        "sacale" :最小値が0、最大値が255になるようスケールして
+        "log" :最小値が0、最大値が255になるようログでスケールして
+    """
     if img is None:
         raise ValueError("Image is None")
     if len(img.shape)==3:
@@ -51,17 +60,23 @@ def show_img(
         plt.figure(figsize=figsize)
         plt.imshow(img_cvt)
     elif len(img.shape)==2:
-        if show_as_it_is:
+        if show_mode == "as_it_is":
             img_show=img.astype(np.uint8)
             plt.figure(figsize=figsize)
             plt.imshow(img_show,cmap='gray',vmax=255)
-        else:
+        elif show_mode == "scale":
             min_intens=img.min()
             max_intens=img.max()
-            img_show=((img-min_intens)/(max_intens-min_intens)*255).astype(np.uint8)
+            img_show=((img-min_intens)/np.log(max_intens-min_intens)*255).astype(np.uint8)
             plt.figure(figsize=figsize)
             plt.imshow(img_show,cmap='gray')
-    if not(show_axis):
+        elif show_mode == "log":
+            min_intens=img.min()
+            max_intens=img.max()
+            img_show=(np.log(img-min_intens+1e-5)/np.log(max_intens-min_intens)*255).astype(np.uint8)
+            plt.figure(figsize=figsize)
+            plt.imshow(img_show,cmap='gray')
+    if not show_axis:
         plt.axis('off')
     plt.show()
 
@@ -71,7 +86,8 @@ def scale(image, ratio):
     アフィン変換を使って拡大縮小
     """
     h, w = image.shape[:2]
-    # アフィン変換のもととなる行列
+    # cv2.getAffineTransformは変換元と変換後の3点を指定すれば、
+    # 2X3のアフィン変換行列を生成する
     src = np.array([[0.0, 0.0],[0.0, 1.0],[1.0, 0.0]], np.float32)
     dest = src * ratio
     affine = cv2.getAffineTransform(src, dest)
