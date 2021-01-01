@@ -27,12 +27,16 @@ def compute_harris_response(im,sigma=3):
     Wtr = Wxx + Wyy
 
     # 返り値の画像は引数の画像と同じサイズとなる。
-    return Wdet/Wtr
+    # Errata for Programming Computer Vision with Pythonより修正
+    return Wdet/(Wtr*Wtr)
 
 def search_harris_point(harrisim,min_dist=10,threshold=0.1):
     """
-    Harris応答画像からコーナーを返す
+    Harris応答画像からハリス特徴量が大きいもの、
+    つまりコーナーを返す
     min_distはすでにリストに追加されたコーナーや画像境界から分離する最小ピクセル数
+
+    Return:(filtered_coords)
     """
     
     #閾値thresholdを超えるコーナー候補を見つける
@@ -50,7 +54,8 @@ def search_harris_point(harrisim,min_dist=10,threshold=0.1):
     candidate_values = [harrisim[c[0],c[1]] for c in coords]
 
     #候補をソートする
-    index = np.argsort(candidate_values)
+    # Errata for Programming Computer Vision with Pythonより修正
+    index = np.argsort(candidate_values)[::-1]
 
     #画像中で、そこのコーナーを選んでいいと
     #許容する点の座標を配列に格納する
@@ -84,10 +89,13 @@ def plot_harris_points(image,filtered_coords):
     ip.show_img(im_draw)
 
 
-def extract_pixels_near_coord(image,coords,wid=5):
+def pick_pixels_near_coord(image,coords,wid=5):
     """
     各点について、点の周辺で幅2*wid+1の近傍ピクセル値を取り出す
     (search_harris_pointでの点の最小距離 min_dist > widを仮定している)
+    
+    return:
+        特徴点周辺の画素のarrayのリスト(desc)
     """
     desc=[]
     for coord in coords:
@@ -96,12 +104,18 @@ def extract_pixels_near_coord(image,coords,wid=5):
         desc.append(patch)
     return desc
  
-def extract_max_ncc_indices(desc1,desc2,threshold=0.5):
-    '''正規化相互相関(nomal cross correlation)を用いて、第1の画像の各コーナー点記述子と、
-    第2の画像の記述子でnccが最大の点のindexを返す'''
+def pick_max_ncc_indices(desc1,desc2,threshold=0.5):
+    """
+    正規化相互相関(nomal cross correlation)を用いて、第1の画像の各コーナー点記述子と、
+    第2の画像の記述子でnccが最大の点のindexを返す
+
+    Args:
+        desc1 (list):画像1の特徴点周辺の画素のarrayのリスト
+        desc2 (list):画像2の特徴点周辺の画素のarrayのリスト
+    """
     n=len(desc1[0])
 
-    #対応点ごとの距離
+    # 対応点ごとの距離
     d = -np.ones((len(desc1),len(desc2)))
     for i in range(len(desc1)):
         for j in range(len(desc2)):
@@ -113,14 +127,16 @@ def extract_max_ncc_indices(desc1,desc2,threshold=0.5):
     ndx = np.argsort(-d)
     matchs_indices = ndx[:,0]
     #matchs_indicesは画像1と画像2の記述子のうち、
-    #画像1から画像2への相関関数が最大のもののindex
+    #画像1から画像2への相関関数を大きい順に並べたindex
     return matchs_indices
 
-def extract_same_matches(desc1,desc2,threshold=0.5):
-    '''extract_max_ncc_index()で取り出したindexが双方向で一致しているかを調べ、
-    一致していたものだけのindexを返す。'''
-    matches_12=extract_max_ncc_indices(desc1,desc2,threshold)
-    matches_21=extract_max_ncc_indices(desc2,desc1,threshold)
+def pick_same_matches(desc1,desc2,threshold=0.5):
+    """
+    extract_max_ncc_index()で取り出したindexが双方向で一致しているかを調べ、
+    一致していたものだけのindexを返す。
+    """
+    matches_12=pick_max_ncc_indices(desc1,desc2,threshold)
+    matches_21=pick_max_ncc_indices(desc2,desc1,threshold)
     #matchs_12は画像1と画像2の記述子のうち、
     #画像1から画像2への相関関数が最大のもののindex
 
@@ -137,7 +153,9 @@ def extract_same_matches(desc1,desc2,threshold=0.5):
     return matches_12
 
 def concatenate_img_horiz(im1,im2):
-    '''2つの画像を横に並べた画像を返す'''
+    """
+    2つの画像を横に並べた画像を返す
+    """
     height1 = im1.shape[0]
     height2 = im2.shape[0]
     
@@ -161,21 +179,56 @@ def concatenate_img_horiz(im1,im2):
 
     return np.concatenate((im1_cvt,im2_cvt),axis=1).astype(np.uint8)
 
-def plot_matches(im1,im2,locs1,locs2,match_indices,show_below=True,figsize=(6,4)):
-    '''対応点を線で結んで画像を表示する'''
+def plot_matches(
+        im1,
+        im2,
+        locs1,
+        locs2,
+        match_indices,
+        show_below=True,
+        figsize=(6,4)):
+    """
+    対応点を線で結んで画像を表示する。
+
+    Args:
+        im1 (np.ndaarray)
+        im1 (np.ndaarray)
+        im1 (np.ndaarray)
+        im1 (np.ndaarray)
+    """
     
     im3 = concatenate_img_horiz(im1,im2)
+    # show_belowがTrueなら、線で結んでない画像を下に表示する。
     if show_below:
         im3 = np.vstack((im3,im3))
     
-    ip.show_img(im3,figsize=figsize)
+    ip.show_img(
+        im3,
+        show_mode='as_it_is',
+        figsize=figsize,
+        successive_plot=True)
     width1 = im1.shape[1]
     for i,m in enumerate(match_indices):
         if m>=0:
-            plt.plot([locs1[i][1],locs2[m][1]+width1],[locs1[i][0],locs2[m][0]],'c')
+            plt.plot(
+                [locs1[i][1],locs2[m][1]+width1],
+                [locs1[i][0],locs2[m][0]],
+                'c')
     plt.axis('off')
+    plt.show()
     
-def compute_harris_ncc_and_plot(im1,im2,min_dist=100,wid=5,sigma=5,threshold=0.5,figsize=(10,20)):
+def compute_harris_ncc_and_plot(
+        im1,
+        im2,
+        min_dist=100,
+        wid=5,
+        sigma=5,
+        threshold=0.5,
+        figsize=(10,20)):
+    """
+    2つの画像のハリス特徴量が大きかったコーナーを総当りで、
+    マッチングし、線で結んで表示する。
+    """
     dimension1=len(im1.shape)
     dimension2=len(im2.shape)
     
@@ -186,19 +239,26 @@ def compute_harris_ncc_and_plot(im1,im2,min_dist=100,wid=5,sigma=5,threshold=0.5
         im1_cvt=cv2.cvtColor(im1_cvt,cv2.COLOR_BGR2GRAY)
     if (dimension2==3):
         im2_cvt=cv2.cvtColor(im2_cvt,cv2.COLOR_BGR2GRAY)
-
-    harrisim = compute_harris_response(im1_cvt,sigma=sigma)
+    
     #Harris corner ditectorを計算
-    filtered_coords1 = search_harris_point(harrisim,min_dist=min_dist)
+    harrisim = compute_harris_response(im1_cvt,sigma=sigma)
     #Harrisの応答関数が大きいものの座標を探す
-    d1 = extract_pixels_near_coord(im1_cvt,filtered_coords1,wid=wid)
-    #Cornerの座標周辺のピクセル値を取得する
+    filtered_coords1 = search_harris_point(harrisim,min_dist=min_dist)
+    #Cornerの座標周辺のピクセル値を取得する    
+    d1 = pick_pixels_near_coord(im1_cvt,filtered_coords1,wid=wid)
     
     harrisim = compute_harris_response(im2_cvt,sigma=sigma)
     filtered_coords2 = search_harris_point(harrisim,min_dist=min_dist)
-    d2 = extract_pixels_near_coord(im2_cvt,filtered_coords2,wid=wid)
-    
-    match_indices=extract_same_matches(d1,d2,threshold=threshold)
-    #Cornerの座標周辺のピクセル値同士を比較し、その相関関数が大きいもののindexを取得する
-    
-    plot_matches(im1_cvt,im2_cvt,filtered_coords1,filtered_coords2,match_indices,figsize=figsize)
+    d2 = pick_pixels_near_coord(im2_cvt,filtered_coords2,wid=wid)
+
+    # Cornerの座標周辺のピクセル値同士を比較し、その相関関数が大きいもののindexを取得する
+    match_indices=pick_same_matches(d1,d2,threshold=threshold)
+
+    # 図示する。
+    plot_matches(
+        im1,
+        im2,
+        filtered_coords1,
+        filtered_coords2,
+        match_indices,
+        figsize=figsize)

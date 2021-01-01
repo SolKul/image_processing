@@ -40,7 +40,8 @@ def show_img(
         figsize=(9,6),
         isBGR=True,
         show_mode="scale",
-        show_axis=False):
+        show_axis=False,
+        successive_plot=False):
     """
     array形式の画像を表示する。カラーでもグレースケールでも対応。
     グレースケールの場合、そのまま、スケール、ログスケールで表示が選べる。
@@ -78,7 +79,8 @@ def show_img(
             plt.imshow(img_show,cmap='gray')
     if not show_axis:
         plt.axis('off')
-    plt.show()
+    if not successive_plot:
+        plt.show()
 
 
 def scale(image, ratio):
