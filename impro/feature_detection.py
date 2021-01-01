@@ -36,7 +36,7 @@ def search_harris_point(harrisim,min_dist=10,threshold=0.1):
     つまりコーナーを返す
     min_distはすでにリストに追加されたコーナーや画像境界から分離する最小ピクセル数
 
-    Return:(filtered_coords)
+    Return: ハリス特徴量が大きい順の、y軸(列)、x軸(行)の順で入った座標のタプルのリスト(filtered_coords)
     """
     
     #閾値thresholdを超えるコーナー候補を見つける
@@ -63,7 +63,7 @@ def search_harris_point(harrisim,min_dist=10,threshold=0.1):
     allowed_locations=np.zeros(harrisim.shape)
     allowed_locations[min_dist:-min_dist,min_dist:-min_dist]=1
 
-    #最小距離を考慮しながら、最良の点を得る
+    # 最小距離を考慮しながら、最良の点を得る
     # coordsは列方向、行方向のタプルのリスト
     filtered_coords = []
     for i in index:
@@ -191,10 +191,10 @@ def plot_matches(
     対応点を線で結んで画像を表示する。
 
     Args:
-        im1 (np.ndaarray)
-        im1 (np.ndaarray)
-        im1 (np.ndaarray)
-        im1 (np.ndaarray)
+        im1 (np.ndaarray): 1つ目の画像、
+        im2 (np.ndaarray): 2つ目の画像
+        locs1 (list): y軸(列)、x軸(行)の順で入ったコーナーの座標のタプルのリスト
+        locs2 (list): y軸(列)、x軸(行)の順で入ったコーナーの座標のタプルのリスト
     """
     
     im3 = concatenate_img_horiz(im1,im2)
@@ -209,7 +209,11 @@ def plot_matches(
         successive_plot=True)
     width1 = im1.shape[1]
     for i,m in enumerate(match_indices):
+        # 対応点が見つからなければm=-1で、
+        # 対応点が見つかった点についてプロット。
         if m>=0:
+            # x軸、y軸の順でプロット、
+            # 横に並べているので+width1とする。
             plt.plot(
                 [locs1[i][1],locs2[m][1]+width1],
                 [locs1[i][0],locs2[m][0]],
@@ -228,6 +232,7 @@ def compute_harris_ncc_and_plot(
     """
     2つの画像のハリス特徴量が大きかったコーナーを総当りで、
     マッチングし、線で結んで表示する。
+    ただ、精度は低い。あくまで特徴量マッチングの練習
     """
     dimension1=len(im1.shape)
     dimension2=len(im2.shape)
