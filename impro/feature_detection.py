@@ -267,3 +267,36 @@ def compute_harris_ncc_and_plot(
         filtered_coords2,
         match_indices,
         figsize=figsize)
+
+def akaze_matching(im1,im2,threshold=0.3):
+    """
+    A-KAZEによる特徴量マッチング
+    """
+    # A-KAZE検出器の生成
+    akaze = cv2.AKAZE_create()
+
+    # 特徴点とその特徴量ベクトルのリスト
+    kp1, des1 = akaze.detectAndCompute(im1,None)
+    kp2, des2 = akaze.detectAndCompute(im2,None)
+
+    # Brute-Force Matcher生成
+    # create BFMatcher object
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+
+    # 比較機で対応オブジェクトのリストmatchesを作成
+    matches = bf.match(des1, des2)
+    # 対応オブジェクトのメンバのdistanceでソートする
+    # sortedのkeyに無名関数(x.distanceを返す)を割り当ててソート
+    matches = sorted(matches, key = lambda x:x.distance)
+
+    # 許容最大の距離
+    max_dis=matches[-1].distance*threshold
+    matches_num=len(matches)
+    for i in range(matches_num):
+        if matches[i].distance > max_dis:
+            break
+    num_lim=i
+
+    img3 = cv2.drawMatches(im1, kp1, im2, kp2, matches[:num_lim], None, flags=2)
+    
+    return img3,kp1,kp2,matches,num_lim
