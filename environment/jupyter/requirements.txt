@@ -1,0 +1,6 @@
+# This file may be used to create an environment using:
+# $ conda create --name <env> --file <this file>
+# platform: linux-64
+black=22.3.0
+jupyter_contrib_nbextensions=0.5.1
+opencv=4.5.5

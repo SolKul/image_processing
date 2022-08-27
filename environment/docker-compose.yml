@@ -1,0 +1,19 @@
+version: '3'
+services:
+  image_processing:
+    build: jupyter
+    image: image_processing:1
+    container_name: image_processing
+    ports:
+      - '8888:8888'
+    working_dir: /home/jovyan/work
+    user: root
+    environment: 
+      GRANT_SUDO: "yes"
+      DOCKER_STACKS_JUPYTER_CMD: "notebook"
+    volumes: 
+      - type: bind
+        source: ${WORK_DIR}
+        target: /home/jovyan/work
+    command: 
+      "start-notebook.sh --NotebookApp.password=${HASHED_PASSWORD}"
