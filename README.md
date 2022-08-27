@@ -59,7 +59,7 @@ https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_recons
 
 ## カメラ行列について
 
-$\boldsymbol{x}$:画像上の2次元座標
+$\boldsymbol{x}$:画像上の2次元座標  
 $$
 \\
 \boldsymbol{x}=\left(\begin{array}{c}
@@ -68,7 +68,7 @@ y\\
 1
 \end{array}\right)\\
 \  \\
-$$
+$$  
 $\boldsymbol{X}$:3次元座標  
 $$
 \\
@@ -79,7 +79,7 @@ Z\\
 W
 \end{array}\right)\\
 \  \\
-$$
+$$  
 
 ピンホールカメラを用いると、3Dの点Xから画像上の点 x（どちらも同次座標で表現）への射影は
 次の式で表せる。
