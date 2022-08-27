@@ -40,3 +40,114 @@ VSCodeを開き拡張機能の`Remote - SSH`をインストールし、対象の
 ### ローカルPC上でコンテナを立ち上げた場合
 
 VSCodeを開き拡張機能の`Remote - Container`をインストールし、対象コンテナをVSCodeで開く。
+
+# カメラ行列の原理
+
+カメラ行列の原理  
+まずピンホールカメラモデルについて理解  
+https://www.slideshare.net/ShoheiMori/ss-64994150  
+
+ついでに同次座標系について理解  
+http://zellij.hatenablog.com/entry/20120523/p1  
+
+要は座標を扱うときはその1次元上で扱うと便利という話  
+
+そしてopencv公式
+https://docs.opencv.org/2.4/modules/calib3d/doc/camera_calibration_and_3d_reconstruction.html  
+
+![カメラ行列の原理](https://docs.opencv.org/2.4/_images/pinhole_camera_model.png)
+
+## カメラ行列について
+
+$\boldsymbol{x}$:画像上の2次元座標
+$$
+\\
+\boldsymbol{x}=\left(\begin{array}{c}
+x\\
+y\\
+1
+\end{array}\right)\\
+\  \\
+$$
+$\boldsymbol{X}$:3次元座標  
+$$
+\\
+\boldsymbol{X}=\left(\begin{array}{c}
+X\\
+Y\\
+Z\\
+W
+\end{array}\right)\\
+\  \\
+$$
+
+ピンホールカメラを用いると、3Dの点Xから画像上の点 x（どちらも同次座標で表現）への射影は
+次の式で表せる。
+$$\lambda \boldsymbol{x}=P\boldsymbol{X}=K(R|t)\boldsymbol{X}$$
+まずワールド座標系での3Dの点Xをカメラを中心とした座標系に
+$$
+(R|t)\boldsymbol{X}
+$$
+で射影する。  
+$(R|t)$は$3\times4$なのでこの射影で同次座標系ではなく、普通の座標になるっぽい  
+  
+  
+そして$K$で画像上の2次元座標に射影される  
+  
+
+
+$P=K(R|t)$  
+$K$:内部パラメータ  
+$$
+\\
+K=\left(\begin{array}{ccc}
+f_x & s & c_x\\
+0 & f_y & c_y\\
+0 & 0 & 1
+\end{array}\right)\\
+\  \\
+$$
+$fx,fy$:焦点距離。厳密にはレンズの焦点距離とは違うので注意。縦横で異なることがあるのでfx,fy別になっている。  
+$c_x,c_y$左端から、画像中心までの距離。$x$を左端からの座標系に戻すために必要  
+$R$:回転行列(3×3)  
+$t$:並行移動(3×1)  
+$P$:カメラ行列、3次元座標を画像上の2次元座標に射影する行列  
+$\lambda,W$:よくわからん
+
+行列式と行列の積の関係
+$$
+C=AB\\
+|C|=|A||B|\\
+$$
+カメラ行列$K$とその対角成分の符号を取ったもの$T$
+$$
+\\
+K=\left(\begin{array}{ccc}
+f_x & s & c_x\\
+0 & f_y & c_y\\
+0 & 0 & 1
+\end{array}\right)\\
+\  \\
+\  \\
+T=\left(\begin{array}{ccc}
+sgn(f_x) & 0 & 0\\
+0 & sgn(f_y) & 0\\
+0 & 0 & sgn(1)
+\end{array}\right)\\
+\ \\
+\ \\
+sgn(|K|)=sgn(|T|)\\
+\ \\
+$$
+その積$K'$の行列式は必ず正
+$$
+K'=KT\\
+\ \\
+if\ |T|>0\\
+sgn(|K|)=sgn(|T|)>0\\
+|K'|=|K||T|>0\\
+\ \\
+else\ |T|<0\\
+sgn(|K|)=sgn(|T|)<0\\
+|K'|=|K||T|>0\\
+$$
