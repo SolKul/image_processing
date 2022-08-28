@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
-from . import image_processing as ip
+from . import impro as ip
 
 def compute_harris_response(im,sigma=3):
     """
