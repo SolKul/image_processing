@@ -27,6 +27,8 @@ def imshow(
     Returns:
         plt.Fiugre(optional):ax=fig.axes[0]とすれば、その後表示を付け足せる。
     """
+    # ここで生成したfigがcurrent figureとなるので、
+    # notebookでこのまま抜けるとこのfigが描写される
     fig=plt.figure(figsize=figsize)
     dim_num= len(img.shape)
     # 画像の次元数は2(グレースケール)か3(カラー)のどちらかに対応
@@ -56,17 +58,57 @@ def imshow(
     if return_fig: return fig 
 
 
-def scale(image, ratio):
+def scale(image:np.ndarray, ratio:float)->np.ndarray:
+    """アフィン変換を使って拡大縮小
+    アフィン変換について:https://qiita.com/koshian2/items/c133e2e10c261b8646bf
+
+    Args:
+        image (np.ndarray): 拡大縮小したい画像
+        ratio (float): 拡大縮小の割合。変換後の高さ/元の高さ
+
+    Returns:
+        np.ndarray: 拡大縮小した画像
     """
-    アフィン変換を使って拡大縮小
-    """
+    assert ratio > 0
     h, w = image.shape[:2]
+    h_scaled=int(h*ratio)
+    w_scaled=int(w*ratio)
     # cv2.getAffineTransformは変換元と変換後の3点を指定すれば、
     # 2X3のアフィン変換行列を生成する
     src = np.array([[0.0, 0.0],[0.0, 1.0],[1.0, 0.0]], np.float32)
     dest = src * ratio
     affine = cv2.getAffineTransform(src, dest)
-    return cv2.warpAffine(image, affine, (2*w, 2*h), cv2.INTER_LANCZOS4) # 補間法も指定できる
+    return cv2.warpAffine(image, affine, (w_scaled,h_scaled), cv2.INTER_LANCZOS4) # 補間法も指定できる
+
+def histeq(image:np.ndarray,nbr_bins:int=256)->tuple[np.ndarray,np.ndarray]:
+    """グレースケールの画像のヒストグラムを平坦化する。
+
+    Args:
+        image (np.ndarray): 平坦化したいグレースケール画像
+        nbr_bins (int, optional): 補間の細かさ. Defaults to 256.
+
+    Returns:
+        tuple[np.ndarray,np.ndarray]: 平坦化した画像と、元画像の累積分布関数(CDF)
+    """
+    assert len(image.shape) == 2
+    # 画像のヒストグラムを得る
+    imhist,bins=np.histogram(image.flatten(),bins=nbr_bins,density=True)
+    cdf=imhist.cumsum() # 累積和
+    cdf=255*cdf/cdf[-1] # 正規化
+
+    # cdfを線形補間し、新しいピクセル値とする。
+    im2=np.interp(image.flatten(),bins[:-1],cdf)
+    # np.interp(x,xp,fp)でxの点を(xp、fp)という組み合わせの関数で補間する
+    # (つまりy=f(x)という関数があったとして、xpの点の値fpしかわかっていない状況)
+
+    # 今回imageで出現する明るさの点を、cdfに基づいて補間する
+    # そうすると出現回数が多い明るさはばらける
+
+    # ある明るさの付近が出現回数が多い
+    # →その付近は元のヒストグラムで高い山となる
+    # →そのヒストグラムを累積和したcdfの傾きが急になる
+    # →補間されるときに明るさがばらけやすい
+    return im2.reshape(image.shape),cdf
 
 def imread(
         filename:str,
