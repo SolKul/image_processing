@@ -1,26 +1,28 @@
-from scipy.ndimage import filters
+from scipy import ndimage
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
-from . import impro as ip
+from . import impro
 
-def compute_harris_response(im,sigma=3):
+def compute_harris_response(im:np.ndarray,sigma:int=3):
     """
     グレースケール画像の各ピクセルについて、
     Harris coner detectorの応答関数を計算する
     """
+
+    # 画像はグレースケールであること
+    if len(im.shape) != 2:
+        raise ValueError("image should be gray scale")
     
     #微分フィルタ
-    imx = np.zeros(im.shape)
-    filters.gaussian_filter(im,(sigma,sigma),(0,1),imx)
-    imy=np.zeros(im.shape)
-    filters.gaussian_filter(im,(sigma,sigma),(1,0),imy)
+    imx:np.ndarray=ndimage.gaussian_filter(im,(sigma,sigma),(0,1),float)
+    imy:np.ndarray=ndimage.gaussian_filter(im,(sigma,sigma),(1,0),float)
     
     #Harris行列の成分を計算する
-    Wxx = filters.gaussian_filter(imx*imx,sigma)
-    Wxy = filters.gaussian_filter(imx*imy,sigma)
-    Wyy = filters.gaussian_filter(imy*imy,sigma)
+    Wxx = ndimage.gaussian_filter(imx*imx,sigma)
+    Wxy = ndimage.gaussian_filter(imx*imy,sigma)
+    Wyy = ndimage.gaussian_filter(imy*imy,sigma)
 
     #判別式と対角成分
     Wdet = Wxx*Wyy - Wxy**2
@@ -28,6 +30,7 @@ def compute_harris_response(im,sigma=3):
 
     # 返り値の画像は引数の画像と同じサイズとなる。
     # Errata for Programming Computer Vision with Pythonより修正
+    # https://www.oreilly.com/catalog/errata.csp?isbn=0636920022923
     return Wdet/(Wtr*Wtr)
 
 def search_harris_point(harrisim,min_dist=10,threshold=0.1):
@@ -86,7 +89,7 @@ def plot_harris_points(image,filtered_coords):
         # cv2.circleは座標はx軸(行)、y軸(列)の順
         pt=(coord[1],coord[0])
         cv2.circle(im_draw,pt,2,(0,100,200),thickness=20)
-    ip.show_img(im_draw)
+    impro.imshow(im_draw)
 
 
 def pick_pixels_near_coord(image,coords,wid=5):
