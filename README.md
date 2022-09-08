@@ -55,3 +55,7 @@ VSCodeを開き拡張機能の`Remote - SSH`をインストールし、対象の
 
 VSCodeを開き拡張機能の`Remote - Container`をインストールし、対象コンテナをVSCodeで開く。
 
+# 数式
+
+数式については
+[Home · SolKul/image_processing Wiki](https://github.com/SolKul/image_processing/wiki)に記載
