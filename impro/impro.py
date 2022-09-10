@@ -1,3 +1,4 @@
+from typing import Union
 import numpy as np
 import cv2
 from pathlib import Path
@@ -9,7 +10,7 @@ def imshow(
         isBGR:bool=True,
         show_mode:str="as is",
         show_axis:bool=False,
-        return_fig:bool=False):
+        return_fig:bool=False) -> Union[None,plt.Figure]:
     """
     np.array形式の画像を表示する。カラーでもグレースケールでも対応。
     グレースケールの場合、そのまま、スケール、ログスケールで表示するかが選べる。
@@ -24,8 +25,11 @@ def imshow(
         show_axis (bool, optional): x軸、y軸の表示を消す. Defaults to False.
         return_fig (bool, optional): plt.figureで生成したfigを返すか. Defaults to False.
 
+    Raises:
+        ValueError: 画像の次元数が2か3でないの場合
+
     Returns:
-        plt.Fiugre(optional):ax=fig.axes[0]とすれば、その後表示を付け足せる。
+        Union[None,plt.Figure]: figを返す場合、ax=fig.axes[0]とすれば、その後表示を付け足せる。
     """
     # ここで生成したfigがcurrent figureとなるので、
     # notebookでこのまま抜けるとこのfigが描写される
