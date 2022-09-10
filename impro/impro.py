@@ -32,8 +32,10 @@ def imshow(
     fig=plt.figure(figsize=figsize)
     dim_num= len(img.shape)
     # 画像の次元数は2(グレースケール)か3(カラー)のどちらかに対応
-    assert 2 <= dim_num <= 3
+    if dim_num < 2 or dim_num>3:
+        raise ValueError("dimenstion sholud be 2 or 3")
     if dim_num==3:
+        img=img.astype(np.uint8)
         if isBGR:
             img_cvt=cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
         else:
