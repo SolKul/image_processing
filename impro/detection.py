@@ -5,10 +5,20 @@ import matplotlib.pyplot as plt
 
 from . import impro
 
-def compute_harris_response(im:np.ndarray,sigma:int=3):
-    """
-    グレースケール画像の各ピクセルについて、
+def compute_harris_response(im:np.ndarray,sigma:int=3,k:float=0.04)->np.ndarray:
+    """グレースケール画像の各ピクセルについて、
     Harris coner detectorの応答関数を計算する
+
+    Args:
+        im (np.ndarray): Harris応答関数を計算するグレー画像
+        sigma (int, optional): ガウシアン微分フィルタのsigma. Defaults to 3.
+        k (float, optional): HarrisのRの係数のカッパ. Defaults to 0.04.
+
+    Raises:
+        ValueError: 画像がグレースケールでないときのエラー
+
+    Returns:
+        np.ndarray: ハリス応答関数
     """
 
     # 画像はグレースケールであること
@@ -31,15 +41,24 @@ def compute_harris_response(im:np.ndarray,sigma:int=3):
     # 返り値の画像は引数の画像と同じサイズとなる。
     # Errata for Programming Computer Vision with Pythonより修正
     # https://www.oreilly.com/catalog/errata.csp?isbn=0636920022923
-    return Wdet/(Wtr*Wtr)
+    # r_harris = Wdet/(Wtr*Wtr)
 
-def search_harris_point(harrisim,min_dist=10,threshold=0.1):
-    """
-    Harris応答画像からハリス特徴量が大きいもの、
+    #　↑だとWtrが0の場合にnanになってしまうので、元のHarrisの定義通りにする
+    r_harris = Wdet-k*Wtr**2
+    return r_harris
+
+def search_harris_point(harrisim:np.ndarray,min_dist:int=10,threshold:float=0.1)->list[np.ndarray]:
+    """    Harris応答画像からハリス特徴量が大きいもの、
     つまりコーナーを返す
     min_distはすでにリストに追加されたコーナーや画像境界から分離する最小ピクセル数
 
-    Return: ハリス特徴量が大きい順の、y軸(列)、x軸(行)の順で入った座標のタプルのリスト(filtered_coords)
+    Args:
+        harrisim (np.ndarray): _description_
+        min_dist (int, optional): _description_. Defaults to 10.
+        threshold (float, optional): _description_. Defaults to 0.1.
+
+    Returns:
+        list[np.ndarray]: ハリス特徴量が大きい順の、x軸(横方向)、y軸(縦方向)の順で入った座標のタプルのリスト
     """
     
     #閾値thresholdを超えるコーナー候補を見つける
@@ -47,10 +66,10 @@ def search_harris_point(harrisim,min_dist=10,threshold=0.1):
     harrisim_t=(harrisim > corner_threshold) *1
 
     # 候補の座標を得る
-    # numpyのarrayは最初が列方向、行方向だが、
-    # ndarray.nonzero()は行方向のインデックス、
-    # 列方向のインデックスの順にタプルで返すので、
-    # nonzero()を転置している。
+    # numpyのarrayは最初が縦方向、次が横方向だが、
+    # ndarray.nonzero()は横方向のインデックス、
+    # 縦方向のインデックスの順にタプルで返すので、
+    # arrayにして転置している。
     coords = np.array(harrisim_t.nonzero()).T
 
     #候補の値を得る
@@ -68,7 +87,7 @@ def search_harris_point(harrisim,min_dist=10,threshold=0.1):
 
     # 最小距離を考慮しながら、最良の点を得る
     # coordsは列方向、行方向のタプルのリスト
-    filtered_coords = []
+    filtered_coords:list[np.ndarray] = []
     for i in index:
         # allowed_locationsで1が入っている点だけを調べる
         if allowed_locations[coords[i,0],coords[i,1]] == 1:
@@ -79,9 +98,12 @@ def search_harris_point(harrisim,min_dist=10,threshold=0.1):
                              (coords[i,1]-min_dist):(coords[i,1]+min_dist)] = 0
     return filtered_coords
 
-def plot_harris_points(image,filtered_coords):
-    """
-    画像中に見つかったコーナーを描画 
+def plot_harris_points(image:np.ndarray,filtered_coords:list[np.ndarray]):
+    """画像中に見つかったコーナーを描画 
+
+    Args:
+        image (np.ndarray): 元の画像
+        filtered_coords (list[np.ndarray]): 検出されたコーナーの座標
     """
     im_draw=image.copy()
     for coord in filtered_coords:
