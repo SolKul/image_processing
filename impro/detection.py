@@ -48,14 +48,13 @@ def compute_harris_response(im:np.ndarray,sigma:int=3,k:float=0.04)->np.ndarray:
     return r_harris
 
 def search_harris_point(harrisim:np.ndarray,min_dist:int=10,threshold:float=0.1)->list[np.ndarray]:
-    """    Harris応答画像からハリス特徴量が大きいもの、
+    """Harris応答画像からハリス特徴量が大きいもの、
     つまりコーナーを返す
-    min_distはすでにリストに追加されたコーナーや画像境界から分離する最小ピクセル数
 
     Args:
-        harrisim (np.ndarray): _description_
-        min_dist (int, optional): _description_. Defaults to 10.
-        threshold (float, optional): _description_. Defaults to 0.1.
+        harrisim (np.ndarray): Harris応答を計算した画像
+        min_dist (int, optional): すでにリストに追加されたコーナーや画像境界から分離する最小ピクセル数. Defaults to 10.
+        threshold (float, optional): コーナーとして認定する割合閾値. Defaults to 0.1.
 
     Returns:
         list[np.ndarray]: ハリス特徴量が大きい順の、y座標(縦方向)、x座用(横方向)の順で入った座標のタプルのリスト
@@ -112,13 +111,18 @@ def plot_harris_points(image:np.ndarray,filtered_coords:list[np.ndarray]):
     impro.imshow(im_draw)
 
 
-def pick_pixels_near_coord(image:np.ndarray,coords:list[np.ndarray],wid:int=5):
-    """
-    各点について、点の周辺で幅2*wid+1の近傍ピクセル値を取り出す
+def pick_pixels_near_coord(image:np.ndarray,coords:list[np.ndarray],wid:int=5)->list[np.ndarray]:
+    """各点について、点の周辺で幅2*wid+1の近傍ピクセル値を取り出す
     (search_harris_pointでの点の最小距離 min_dist > widを仮定している)
-    
-    return:
-        特徴点周辺の画素のarrayのリスト(desc)
+
+
+    Args:
+        image (np.ndarray): _description_
+        coords (list[np.ndarray]): _description_
+        wid (int, optional): _description_. Defaults to 5.
+
+    Returns:
+        list[np.ndarray]: 特徴点周辺の画素のarrayのリスト(desc)
     """
     desc=[]
     for coord in coords:
