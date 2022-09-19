@@ -3,20 +3,67 @@ import cv2
 
 #自作モジュール
 from . import ransac
-from . import impro as ip
+from . import impro
 
-
-# +
 def normalize(points):
     """列方向を一つの座標とみなし、最後の行が1になるように、最後の行で割り、正規化する"""
-    return points/points[-1]
+    if len(points.shape) != 2:
+        raise ValueError("points dimension should be 2")
+    # ブロードキャストが分かりやすいように、1×列数の2次元行列で割る
+    return points/points[-1:,:]
 
 def make_homog(points):
     """
-    同次座標系にする
+    同次座標系にする。もともとの座標行列と1を並べた行とを縦に結合する。
     """
-    return np.vstack((points,np.ones((1,points.shape[1]))))
+    if len(points.shape) != 2:
+        raise ValueError("points dimension should be 2")
+    if points.shape[0] != 2:
+        raise ValueError("points should be expressed in xy coods")
+    return np.vstack(
+        (
+            points,
+            np.ones((1,points.shape[1]))
+        )
+    )
 
+def H_from_points(fp:np.ndarray,tp:np.ndarray):
+    """ 線形なDLT法を使って fpをtpに対応づけるホモグラフィー行列Hを求める。
+    点は自動的に調整される """
+    if fp.shape != tp.shape:
+        raise RuntimeError('number of points do not match')
+    if fp.shape[0] != 3:
+        raise RuntimeError("points should be expressed in homography coods")
+    # 点を調整する（数値計算上重要）
+    # 開始点
+    m = np.mean(fp[:2], axis=1)
+    maxstd = np.max(np.std(fp[:2], axis=1)) + 1e-9
+    c_1:np.ndarray = np.diag([1/maxstd, 1/maxstd, 1])
+    c_1[0][2] = -m[0]/maxstd
+    c_1[1][2] = -m[1]/maxstd
+    fp = c_1 @ fp
+    # 対応点
+    m = np.mean(tp[:2], axis=1)
+    maxstd = np.max(np.std(tp[:2], axis=1)) + 1e-9
+    c_2:np.ndarray = np.diag([1/maxstd, 1/maxstd, 1])
+    c_2[0][2] = -m[0]/maxstd
+    c_2[1][2] = -m[1]/maxstd
+    tp = c_2 @ tp
+    # 線形法のための行列を作る。対応ごとに2つの行になる。
+    nbr_correspondences = fp.shape[1]
+    mat_A = np.zeros((2*nbr_correspondences,9))
+    for i in range(nbr_correspondences):
+        mat_A[2*i] = [-fp[0][i],-fp[1][i],-1,0,0,0,
+            tp[0][i]*fp[0][i],tp[0][i]*fp[1][i],tp[0][i]]
+        mat_A[2*i+1] = [0,0,0,-fp[0][i],-fp[1][i],-1,
+            tp[1][i]*fp[0][i],tp[1][i]*fp[1][i],tp[1][i]]
+    U,S,V = np.linalg.svd(mat_A)
+    H = V[8].reshape((3,3))
+
+    # 調整を元に戻す
+    H = np.dot(np.linalg.inv(c_2),H @ c_1)
+    # 正規化して返す
+    return H / H[2,2]
 
 # -
 
@@ -179,39 +226,6 @@ def compute_rasac_homology(img_query_orig, img_train_orig, MIN_MATCH_COUNT=10, s
 # plt.show()
 
 # +
-
-def H_from_points(fp, tp):
-    if fp.shape != tp.shape:
-        raise RuntimeError('number of points don\'t match')
-
-    m = np.mean(fp[:2], axis=1)
-    maxstd = np.max(np.std(fp[:2], axis=1))+1e-9
-    C1 = np.diag([1/maxstd, 1/maxstd, 1])
-    C1[0][2] = -m[0]/maxstd
-    C1[1][2] = -m[1]/maxstd
-    fp = C1 @ fp
-
-    m = np.mean(tp[:2], axis=1)
-    maxstd = np.max(np.std(tp[:2], axis=1))+1e-9
-    C2 = np.diag([1/maxstd, 1/maxstd, 1])
-    C2[0][2] = -m[0]/maxstd
-    C2[1][2] = -m[1]/maxstd
-    tp = C2 @ tp
-
-    nbr_correspondences = fp.shape[1]
-    A = np.zeros((2*nbr_correspondences, 9))
-    for i in range(nbr_correspondences):
-        A[2*i] = [-fp[0, i], -fp[1, i], -1, 0, 0, 0,
-                  tp[0, i]*fp[0, i], tp[0, i]*fp[1, i], tp[0, i]]
-        A[2*i+1] = [0, 0, 0, -fp[0, i], -fp[1, i], -1,
-                    tp[1, i]*fp[0, i], tp[1, i]*fp[1, i], tp[1, i]]
-
-    U, S, V = np.linalg.svd(A)
-    H = V[8].reshape((3, 3))
-
-    H = np.linalg.inv(C2) @ (H@C1)
-
-    return H/H[2, 2]
 
 
 # -
