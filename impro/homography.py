@@ -1,9 +1,9 @@
+from typing import Union
 import numpy as np
 import cv2
 
 #自作モジュール
-from . import ransac
-from . import impro
+from . import ransac,impro,detection
 
 def normalize(points):
     """列方向を一つの座標とみなし、最後の行が1になるように、最後の行で割り、正規化する"""
@@ -65,171 +65,6 @@ def H_from_points(fp:np.ndarray,tp:np.ndarray):
     # 正規化して返す
     return H / H[2,2]
 
-# -
-
-def compute_rasac_homology(img_query_orig, img_train_orig, MIN_MATCH_COUNT=10, show_detail=False, save_result=False):
-    """
-    query画像とtrain画像についてakazeでマッチングし、
-    ransacによって外れ値を除去してHomology行列を算出する。
-
-    Args:
-        MIN_MATCH_COUNT (int):mathesの数の最小値。これ以下だとHomologyを計算しない
-    """
-    img_query = img_query_orig.copy()
-    img_train = img_train_orig.copy()
-
-    # Initiate AKAZE detector
-    akaze = cv2.AKAZE_create()
-
-    # key pointとdescriptorを計算
-    kp1, des1 = akaze.detectAndCompute(img_query, None)
-    kp2, des2 = akaze.detectAndCompute(img_train, None)
-
-    # matcherとしてflannを使用。
-    # FLANN parameters
-    FLANN_INDEX_LSH = 6
-    index_params = dict(algorithm=FLANN_INDEX_LSH,
-                        table_number=6,
-                        key_size=12,
-                        multi_probe_level=1)
-    search_params = dict(checks=50)
-
-    # ANNで近傍２位までを出力
-    flann = cv2.FlannBasedMatcher(index_params, search_params)
-    matches = flann.knnMatch(des1, des2, k=2)
-
-    # store all the good matches as per Lowe's ratio test.
-    # 2番めに近かったkey pointと差があるものをいいkey pointとする。
-    good_matches = []
-    for i in range(len(matches)):
-        if(len(matches[i])<2):
-            continue
-        m,n=matches[i]
-        if m.distance < 0.7*n.distance:
-            good_matches.append(m)
-
-    # descriptorの距離が近かったもの順に並び替え
-    good_matches = sorted(good_matches, key=lambda x: x.distance)
-
-    if(show_detail):
-        # 結果を描写
-        img_result = cv2.drawMatches(
-            img_query, kp1, img_train, kp2, good_matches[:10], None, flags=2)
-        ip.show_img(img_result, figsize=(20, 30))
-        print('queryのkp:{}個、trainのkp:{}個、good matchesは:{}個'.format(
-            len(kp1), len(kp2), len(good_matches)))
-
-    # ransacによって外れ値を除去してHomology行列を算出する。
-    # opencvの座標は3次元のarrayで表さなければならないのに注意
-
-    if len(good_matches) > MIN_MATCH_COUNT:
-        # matching点の座標を取り出す
-        src_pts = np.float32(
-            [kp1[m.queryIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-        dst_pts = np.float32(
-            [kp2[m.trainIdx].pt for m in good_matches]).reshape(-1, 1, 2)
-
-        # ransacによって外れ値を除去
-        homology_matrix, mask = cv2.findHomography(
-            src_pts, dst_pts, cv2.RANSAC, 5.0)
-
-    else:
-        print("Not enough matches are found - %d/%d" %
-              (len(good_matches), MIN_MATCH_COUNT))
-        matchesMask = None
-        return None, None
-
-    if(show_detail or save_result):
-        # 結果を描写
-        matchesMask = mask.ravel().tolist()
-
-        # query画像の高さ、幅を取得し、query画像を囲う長方形の座標を取得し、
-        # それを算出された変換行列homology_matrixで変換する
-        # 変換した長方形をtrain画像に描写
-        h, w = img_query.shape[:2]
-        pts = np.float32([[0, 0], [0, h-1], [w-1, h-1],
-                          [w-1, 0]]).reshape(-1, 1, 2)
-        dst = cv2.perspectiveTransform(pts, homology_matrix)
-        cv2.polylines(img_train, [np.int32(dst)],
-                      True, (255, 100, 0), 3, cv2.LINE_AA)
-
-        num_draw = 50
-
-        draw_params = dict(
-            #     matchColor = (0,255,0), # draw matches in green color
-            singlePointColor=None,
-            matchesMask=matchesMask[:num_draw],  # draw only inliers
-            flags=2)
-
-        img_result_2 = cv2.drawMatches(
-            img_query, kp1, img_train, kp2, good_matches[:num_draw], None, **draw_params)
-
-    if(show_detail):
-        ip.show_img(img_result_2, figsize=(20, 30))
-        num_inlier = (mask == 1).sum()
-        print('inlier:%d個' % num_inlier)
-    if(save_result):
-        ip.imwrite('ransac_match.jpg', img_result_2)
-
-    return homology_matrix, mask
-
-# +
-# import numpy as np
-# from matplotlib import pyplot as plt
-
-# from sklearn import linear_model, datasets
-
-
-# n_samples = 1000
-# n_outliers = 50
-
-
-# X, y, coef = datasets.make_regression(n_samples=n_samples, n_features=1,
-#                                       n_informative=1, noise=10,
-#                                       coef=True, random_state=0)
-
-# # Add outlier data
-# np.random.seed(0)
-# X[:n_outliers] = 3 + 0.5 * np.random.normal(size=(n_outliers, 1))
-# y[:n_outliers] = -3 + 10 * np.random.normal(size=n_outliers)
-
-# # Fit line using all data
-# lr = linear_model.LinearRegression()
-# lr.fit(X, y)
-
-# # Robustly fit linear model with RANSAC algorithm
-# ransac = linear_model.RANSACRegressor()
-# ransac.fit(X, y)
-# inlier_mask = ransac.inlier_mask_
-# outlier_mask = np.logical_not(inlier_mask)
-
-# # Predict data of estimated models
-# line_X = np.arange(X.min(), X.max())[:, np.newaxis]
-# line_y = lr.predict(line_X)
-# line_y_ransac = ransac.predict(line_X)
-
-# # Compare estimated coefficients
-# print("Estimated coefficients (true, linear regression, RANSAC):")
-# print(coef, lr.coef_, ransac.estimator_.coef_)
-
-# lw = 2
-# plt.scatter(X[inlier_mask], y[inlier_mask], color='yellowgreen', marker='.',
-#             label='Inliers')
-# plt.scatter(X[outlier_mask], y[outlier_mask], color='gold', marker='.',
-#             label='Outliers')
-# plt.plot(line_X, line_y, color='navy', linewidth=lw, label='Linear regressor')
-# plt.plot(line_X, line_y_ransac, color='cornflowerblue', linewidth=lw,
-#          label='RANSAC regressor')
-# plt.legend(loc='lower right')
-# plt.xlabel("Input")
-# plt.ylabel("Response")
-# plt.show()
-
-# +
-
-
-# -
-
 class RansacModel:
     """ http://www.scipy.org/Cookbook/RANSAC のransac.pyを用いて
     ホモグラフィーを当てはめるためのクラス """
@@ -275,3 +110,69 @@ def H_from_ransac(fp,tp,model,maxiter=1000,match_threshold=10):
     H,ransac_data = ransac.ransac(data.T,model,4,maxiter,match_threshold,10,
                                   return_all=True)
     return H,ransac_data['inliers']
+
+def compute_rasac_homography(
+    kp_query:tuple[cv2.KeyPoint,...],
+    kp_train:tuple[cv2.KeyPoint,...],
+    matches:list[cv2.DMatch],
+)->tuple[np.ndarray,np.ndarray]:
+    # matching点の座標を取り出す
+    src_pts = np.float32(
+        [kp_query[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+    dst_pts = np.float32(
+        [kp_train[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+
+    # ransacによって外れ値を除去し、ホモグラフィー行列を計算
+    # opencvの座標は3次元のarrayで表さなければならないのに注意
+    homology_matrix, mask = cv2.findHomography(
+        src_pts, dst_pts, cv2.RANSAC, 5.0)
+    return homology_matrix,mask
+
+def compute_draw_homography(
+    img_query:np.ndarray,
+    img_train:np.ndarray,
+    min_match_count:int=10,
+)->Union[np.ndarray,None]:
+    """
+    query画像とtrain画像についてakazeでマッチングし、
+    ransacによって外れ値を除去してHomology行列を算出する。
+
+    Args:
+        min_match_count (int):mathesの数の最小値。これ以下だとHomologyを計算しない
+    """
+    # 特徴量マッチングによりkpとｍatchesを取得
+    kp_query,kp_train,matches=detection.akaze_matching(img_query,img_train)
+    # もしmatchesがmin_match_count以下しかなければホモグラフィーは計算しない
+    if len(matches) < min_match_count:
+        return
+    # ransacによって外れ値を除去してHomology行列を算出する。
+    homology_matrix, mask =compute_rasac_homography(kp_query,kp_train,matches)
+
+    matchesMask = mask.ravel().tolist()
+
+    # img_queryをimg_train上に移動したとき、どこに移動するか分かりやすくするため、
+    # img_train上に長方形を描く
+    h,w = img_query.shape[:2]
+    pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+    dst = cv2.perspectiveTransform(pts,homology_matrix)
+    img_train_poly=img_train.copy()
+    img_train_poly = cv2.polylines(img_train_poly,[np.int32(dst)],True,255,3, cv2.LINE_AA)
+
+    # img_queryと長方形を描いたimg_traingを並べ、マッチング結果を表示する
+    draw_params = dict(
+        matchColor = (0,255,0), # draw matches in green color
+        singlePointColor = None,
+        matchesMask = matchesMask, # draw only inliers
+        flags = 2
+    )
+    img_result = cv2.drawMatches(
+        img_query,
+        kp_query,
+        img_train_poly,
+        kp_train,
+        matches,
+        None,
+        **draw_params
+    )
+
+    return img_result
