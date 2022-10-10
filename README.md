@@ -10,7 +10,7 @@
 - [実践 コンピュータビジョン](https://www.oreilly.co.jp/books/9784873116075/)
 - [Multiple View Geometry in Computer Vision](https://www.amazon.co.jp/dp/0521540518)  
 
-実践コンピュータビジョンはファイルの読み書き、拡大縮小にPillowを多用しているが、できるだけopenv CVを用いる。
+実践コンピュータビジョンはファイルの読み書き、拡大縮小にPillowを、アフィン変換、ホモグラフィー変換に`scipy.ndimage`を用いているが、できるだけopenv CVを用いる。
 
 # 開発環境の立ち上げ方法
 
@@ -55,7 +55,7 @@ VSCodeを開き拡張機能の`Remote - SSH`をインストールし、対象の
 
 VSCodeを開き拡張機能の`Remote - Container`をインストールし、対象コンテナをVSCodeで開く。
 
-# 数式
+# 演習ノート
 
-数式については
-[Home · SolKul/image_processing Wiki](https://github.com/SolKul/image_processing/wiki)に記載
+`notebooks`以下に演習ノートを作成している。  
+画像データなどデータについては[Programming Computer Vision with Python](http://programmingcomputervision.com/)からPCV_data.zipをダウンロードし、`notebooks/resources/`ディレクトリ以下に展開する。
