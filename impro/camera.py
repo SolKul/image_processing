@@ -25,13 +25,16 @@ class Camera:
         P (array):カメラ行列P=K[R|t]。
     '''
     def __init__(self,P:np.ndarray):
+        """ カメラモデル P = K[R|t] を初期化する """
         self.P=P
         self.K=None 
         self.R=None
         self.t=None
         self.c=None
 
-    def project(self,X):
+    def project(self,X)->np.ndarray:
+        """ 同次座標で表したワールド座標系X(4*nの配列)の点を
+        画像座標系に射影し、座標を正規化する """
         x=self.P @ X
         x=x/x[2]
         return x   
